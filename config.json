@@ -1,0 +1,4 @@
+{
+  "destinationServers": ["10.10.1.19:5001"],
+  "maximumRequestsPerServer": 1
+}
