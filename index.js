@@ -14,6 +14,7 @@ let config = JSON.parse(fs.readFileSync(configPath, "utf8"));
 console.log(config);
 
 let serverConnectionCount = [];
+let serverConnectionQueue = [];
 
 for (let _ of config.destinationServers) {
   serverConnectionCount.push(0);
@@ -23,9 +24,11 @@ app.use(express.json({limit: "500mb"})); // for parsing application/json
 app.use(express.urlencoded({limit: "500mb"}));
 app.use(cors());
 
-app.post("*", async (req, res) => {
+
+async function executeRequest(req, res, serverIndex) {
+  serverConnectionCount[serverIndex] += 1;
   let response = await fetch(
-    "http://" + config.destinationServers[0] + req.url,
+    "http://" + config.destinationServers[serverIndex] + req.url,
     {
       method: "POST",
       headers: {
@@ -35,7 +38,43 @@ app.post("*", async (req, res) => {
     }
   );
   let blob = await response.blob();
-  res.send(Buffer.from(await blob.arrayBuffer()))
+  res.send(Buffer.from(await blob.arrayBuffer()));
+  serverConnectionCount[serverIndex] -= 1;
+}
+
+function getAvailableServerIndex() {
+  let minimum = config.maximumRequestsPerServer;
+  let minimumIndex = -1;
+  for (let i = 0; i < serverConnectionCount.length; i++) {
+    if (serverConnectionCount[i] < minimum) {
+      minimum = serverConnectionCount[i];
+      minimumIndex = i;
+    }
+  }
+
+  return minimumIndex;
+}
+
+function addToQueue(callback) {
+  serverConnectionQueue.push(callback);
+  processQueue();
+}
+
+async function processQueue() {
+  while(serverConnectionQueue.length > 0) {
+    let serverIndex = getAvailableServerIndex();
+    if (serverIndex < 0) return;
+    serverConnectionCount[serverIndex] += 1;
+    let callback = serverConnectionQueue.shift();
+    await callback(serverIndex);
+    serverConnectionCount[serverIndex] -= 1;
+  }
+}
+
+app.post("*", (req, res) => {
+  addToQueue(async (serverIndex) => {
+    await executeRequest(req, res, serverIndex);
+  })
 })
 
 let port = 1234;
