@@ -77,7 +77,7 @@ app.post("*", (req, res) => {
   })
 })
 
-let port = 1234;
+let port = config.port;
 app.listen(port, () => {
   console.log(`Example app listening on port ${port}`);
 });
