@@ -26,20 +26,26 @@ app.use(cors());
 
 
 async function executeRequest(req, res, serverIndex) {
-  serverConnectionCount[serverIndex] += 1;
-  let response = await fetch(
-    "http://" + config.destinationServers[serverIndex] + req.url,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(req.body),
-    }
-  );
-  let blob = await response.blob();
-  res.send(Buffer.from(await blob.arrayBuffer()));
-  serverConnectionCount[serverIndex] -= 1;
+  try {
+    serverConnectionCount[serverIndex] += 1;
+    let response = await fetch(
+      "http://" + config.destinationServers[serverIndex] + req.url,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(req.body),
+      }
+    );
+    let blob = await response.blob();
+    res.send(Buffer.from(await blob.arrayBuffer()));
+    serverConnectionCount[serverIndex] -= 1;
+  }
+  catch (e) {
+    console.log(e);
+    res.end("error");
+  }
 }
 
 function getAvailableServerIndex() {
