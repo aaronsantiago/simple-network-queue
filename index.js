@@ -43,6 +43,7 @@ async function executeRequest(req, res, serverIndex) {
     res.send(Buffer.from(await blob.arrayBuffer()));
   }
   catch (e) {
+    console.log("error with request");
     console.log(e);
     res.end("error");
   }
