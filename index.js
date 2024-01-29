@@ -28,7 +28,7 @@ app.use(cors());
 async function executeRequest(req, res, serverIndex) {
   serverConnectionCount[serverIndex] += 1;
   try {
-    console.log("executing request", req.url, req.body);
+    console.log("executing request", config.destinationServers[serverIndex] + req.url, req.body);
     let response = await fetch(
       "http://" + config.destinationServers[serverIndex] + req.url,
       {
