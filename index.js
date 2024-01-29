@@ -26,8 +26,9 @@ app.use(cors());
 
 
 async function executeRequest(req, res, serverIndex) {
+  serverConnectionCount[serverIndex] += 1;
   try {
-    serverConnectionCount[serverIndex] += 1;
+    console.log("executing request", req.url, req.body);
     let response = await fetch(
       "http://" + config.destinationServers[serverIndex] + req.url,
       {
@@ -40,12 +41,12 @@ async function executeRequest(req, res, serverIndex) {
     );
     let blob = await response.blob();
     res.send(Buffer.from(await blob.arrayBuffer()));
-    serverConnectionCount[serverIndex] -= 1;
   }
   catch (e) {
     console.log(e);
     res.end("error");
   }
+  serverConnectionCount[serverIndex] -= 1;
 }
 
 function getAvailableServerIndex() {
