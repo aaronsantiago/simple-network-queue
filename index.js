@@ -4,6 +4,8 @@ import cors from "cors";
 import process from "process";
 import express from "express";
 
+let sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
 const app = express();
 
 let configPath = "config.json";
@@ -63,9 +65,17 @@ function getAvailableServerIndex() {
   return minimumIndex;
 }
 
+let waitingForDebounce = false;
 function addToQueue(callback) {
   serverConnectionQueue.push(callback);
-  processQueue();
+  if (!waitingForDebounce) {
+    waitingForDebounce = true;
+    (async () => {
+      await sleep(config.requestDebounceTime);
+      waitingForDebounce = false;
+      processQueue();
+    })();
+  }
 }
 
 async function processQueue() {
@@ -73,16 +83,31 @@ async function processQueue() {
     let serverIndex = getAvailableServerIndex();
     if (serverIndex < 0) return;
     serverConnectionCount[serverIndex] += 1;
-    let callback = serverConnectionQueue.shift();
+    let connectionIndex = 0;
+    if (config.usePriorityField) {
+      let priority = Infinity;
+      for (let i = 0; i < serverConnectionQueue.length; i++) {
+        if (serverConnectionQueue[i].priority < priority) {
+          connectionIndex = i;
+          priority = serverConnectionQueue[i].priority;
+        }
+      }
+    }
+    let callback = serverConnectionQueue.splice(connectionIndex, 1)[0].callback;
     await callback(serverIndex);
     serverConnectionCount[serverIndex] -= 1;
   }
 }
 
 app.post("*", (req, res) => {
-  addToQueue(async (serverIndex) => {
+  let serverConnection = {callback: async (serverIndex) => {
     await executeRequest(req, res, serverIndex);
-  })
+  }};
+  if (config.usePriorityField) {
+    serverConnection.priority = req.body[config.priorityField];
+  }
+  console.log("adding to queue:", serverConnection);
+  addToQueue(serverConnection)
 })
 
 let port = config.port;

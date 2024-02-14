@@ -1,5 +1,8 @@
 {
-  "destinationServers": ["10.10.1.19:5001"],
-  "port": 1234,
-  "maximumRequestsPerServer": 1
+  "destinationServers": [ "10.10.1.79:7861" ],
+  "port": 1237,
+  "maximumRequestsPerServer": 1,
+  "requestDebounceTime": 1000,
+  "usePriorityField": true,
+  "priorityField": "assetId"
 }
