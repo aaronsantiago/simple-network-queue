@@ -26,6 +26,38 @@ app.use(express.json({limit: "500mb"})); // for parsing application/json
 app.use(express.urlencoded({limit: "500mb"}));
 app.use(cors());
 
+let parseDbData = [];
+
+if (config.useParseDb) {
+  setInterval(async () => {
+    const url = config.parseDbUrl;
+    const headers = {
+      Accept: "application/json",
+      "X-Parse-Application-Id": config.parseDbAppId,
+      "X-Parse-REST-API-Key": config.parseDbRestApiKey,
+      "Content-Type": " application/json",
+    };
+    // let queryParams = "?where=" + JSON.stringify({tulpa_id: tulpaId});
+    let queryParams = "";
+
+    try {
+      let response = await fetch(url + queryParams, {
+        method: "GET", // or 'PUT'
+        headers: headers,
+      });
+      let data = await response.json();
+      parseDbData = data.results;
+      // console.log(data);
+    } catch (error) {
+      if (error.name === "AbortError") {
+        console.log("Fetch aborted");
+        return;
+      }
+      console.error("Error:", error);
+    }
+  }, 1000);
+}
+
 
 async function executeRequest(req, res, serverIndex) {
   serverConnectionCount[serverIndex] += 1;
@@ -87,7 +119,14 @@ async function processQueue() {
     if (config.usePriorityField) {
       let priority = Infinity;
       for (let i = 0; i < serverConnectionQueue.length; i++) {
-        if (serverConnectionQueue[i].priority < priority) {
+        let connectionPriority = serverConnectionQueue[i].priority;
+        if (config.useParseDb) {
+          let dbValue = parseDbData.find((x) => x[config.parseDbDbField] == serverConnectionQueue[i].dbField);
+          dbValue = dbValue[config.parseDbValueField];
+          connectionPriority -= dbValue;
+          console.log("calculating priority", connectionPriority, serverConnectionQueue[i].dbField, serverConnectionQueue[i].priority, dbValue)
+        }
+        if (connectionPriority < priority) {
           connectionIndex = i;
           priority = serverConnectionQueue[i].priority;
         }
@@ -105,6 +144,9 @@ app.post("*", (req, res) => {
   }};
   if (config.usePriorityField) {
     serverConnection.priority = req.body[config.priorityField];
+  }
+  if (config.useParseDb) {
+    serverConnection.dbField = req.body[config.parseDbRequestField];
   }
   console.log("adding to queue:", serverConnection);
   addToQueue(serverConnection)
