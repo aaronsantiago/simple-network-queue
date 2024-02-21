@@ -62,7 +62,7 @@ if (config.useParseDb) {
 async function executeRequest(req, res, serverIndex) {
   serverConnectionCount[serverIndex] += 1;
   try {
-    console.log("executing request", config.destinationServers[serverIndex] + req.url, req.body);
+    console.log("executing request", config.destinationServers[serverIndex] + req.url);
     let response = await fetch(
       "http://" + config.destinationServers[serverIndex] + req.url,
       {
@@ -87,11 +87,27 @@ async function executeRequest(req, res, serverIndex) {
 function getAvailableServerIndex() {
   let minimum = config.maximumRequestsPerServer;
   let minimumIndex = -1;
+  let minimumIndices = [];
   for (let i = 0; i < serverConnectionCount.length; i++) {
-    if (serverConnectionCount[i] < minimum) {
-      minimum = serverConnectionCount[i];
-      minimumIndex = i;
+    if (config.randomizeDestinationServer) {
+      if (serverConnectionCount[i] < minimum) {
+        minimum = serverConnectionCount[i];
+        minimumIndices = [];
+      }
+      if (serverConnectionCount[i] == minimum) {
+        minimumIndices.push(i);
+      }
     }
+    else {
+      if (serverConnectionCount[i] < minimum) {
+        minimum = serverConnectionCount[i];
+        minimumIndex = i;
+      }
+    }
+  }
+
+  if (config.randomizeDestinationServer && minimumIndices.length > 0) {
+    minimumIndex = minimumIndices[Math.floor(Math.random() * minimumIndices.length)];
   }
 
   return minimumIndex;
@@ -128,7 +144,7 @@ async function processQueue() {
         }
         if (connectionPriority < priority) {
           connectionIndex = i;
-          priority = serverConnectionQueue[i].priority;
+          priority = connectionPriority;
         }
       }
     }

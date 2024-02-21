@@ -1,7 +1,8 @@
 {
-  "destinationServers": ["10.10.1.22:7860", "10.10.1.79:7860"],
+  "destinationServers": ["10.10.1.133:7860", "10.10.1.134:7860", "10.10.1.135:7860", "10.10.1.136:7860"],
   "port": 1235,
   "maximumRequestsPerServer": 1,
+  "randomizeDestinationServer": true,
   "useParseDb": false,
   "parseDbUrl": "parseurl",
   "parseDbAppId": "test",
