@@ -58,7 +58,6 @@ if (config.useParseDb) {
   }, 1000);
 }
 
-
 async function executeRequest(req, res, serverIndex) {
   serverConnectionCount[serverIndex] += 1;
   try {
@@ -154,6 +153,8 @@ async function processQueue() {
   }
 }
 
+let bundledRequests = {};
+
 app.post("*", (req, res) => {
   let serverConnection = {callback: async (serverIndex) => {
     await executeRequest(req, res, serverIndex);
@@ -164,8 +165,48 @@ app.post("*", (req, res) => {
   if (config.useParseDb) {
     serverConnection.dbField = req.body[config.parseDbRequestField];
   }
-  console.log("adding to queue:", serverConnection);
-  addToQueue(serverConnection)
+  if (req.body["snqBundleId"]) {
+    let bid = req.body["snqBundleId"];
+    if (!bundledRequests[bid]) {
+      bundledRequests[bid] = [];
+    }
+    serverConnection.bundleOrder = req.body["snqBundleOrder"];
+    if (serverConnection.bundleOrder != null) {
+      let insertionFound = false;
+      for (let i = 0; i < bundledRequests[bid].length; i++) {
+        console.log("checking bundle order", bundledRequests[bid][i].bundleOrder, serverConnection.bundleOrder);
+        if (bundledRequests[bid][i].bundleOrder > serverConnection.bundleOrder) {
+          bundledRequests[bid].splice(i, 0, serverConnection);
+          insertionFound = true;
+          break;
+        }
+      }
+      if (!insertionFound) {
+        bundledRequests[bid].push(serverConnection);
+      }
+    }
+    else {
+      bundledRequests[bid].push(serverConnection);
+    }
+    console.log("adding to bundle", req.body["snqBundleId"], bundledRequests[req.body["snqBundleId"]].length);
+    if (bundledRequests[bid].length == req.body["snqBundleSize"]) {
+      console.log("adding bundle to queue", req.body["snqBundleId"]);
+      addToQueue({
+        callback: async (serverIndex) => {
+          for (let i = 0; i < bundledRequests[bid].length; i++) {
+            await bundledRequests[bid][i].callback(serverIndex);
+          }
+          delete bundledRequests[bid];
+        },
+        priority: serverConnection.priority,
+        dbField: serverConnection.dbField
+      });
+    }
+  }
+  else {
+    console.log("adding to queue:", serverConnection);
+    addToQueue(serverConnection)
+  }
 })
 
 let port = config.port;
