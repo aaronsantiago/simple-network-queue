@@ -58,17 +58,20 @@ if (config.useParseDb) {
   }, 1000);
 }
 
-async function executeRequest(req, res, serverIndex) {
+async function executeRequest(req, res, serverIndex, method) {
   serverConnectionCount[serverIndex] += 1;
+
   try {
     console.log("executing request", config.destinationServers[serverIndex] + req.url);
+    let modifiedHeaders = {...req.headers};
+    
+    delete modifiedHeaders["content-length"];
+
     let response = await fetch(
-      "http://" + config.destinationServers[serverIndex] + req.url,
+      "http" + (config.useHttps ? "s" : "") +  "://" + config.destinationServers[serverIndex] + req.url,
       {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        method: method,
+        headers: modifiedHeaders,
         body: JSON.stringify(req.body),
       }
     );
@@ -156,8 +159,24 @@ async function processQueue() {
 let bundledRequests = {};
 
 app.post("*", (req, res) => {
+  handleRequest(req, res, "POST");
+});
+
+app.get("*", (req, res) => {
+  handleRequest(req, res, "GET");
+});
+
+app.put("*", (req, res) => {
+  handleRequest(req, res, "PUT");
+});
+
+app.options("*", (req, res) => {
+  handleRequest(req, res, "OPTIONS");
+});
+
+function handleRequest(req, res, method) {
   let serverConnection = {callback: async (serverIndex) => {
-    await executeRequest(req, res, serverIndex);
+    await executeRequest(req, res, serverIndex, method);
   }};
   if (config.usePriorityField) {
     serverConnection.priority = req.body[config.priorityField];
@@ -207,7 +226,7 @@ app.post("*", (req, res) => {
     console.log("adding to queue:", serverConnection);
     addToQueue(serverConnection)
   }
-})
+};
 
 let port = config.port;
 app.listen(port, () => {

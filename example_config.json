@@ -4,6 +4,7 @@
   "maximumRequestsPerServer": 1,
   "randomizeDestinationServer": true,
   "useParseDb": false,
+  "useHttps": false,
   "parseDbUrl": "parseurl",
   "parseDbAppId": "test",
   "parseDbRestApiKey": "undefined",
