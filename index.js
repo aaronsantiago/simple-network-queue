@@ -66,13 +66,21 @@ async function executeRequest(req, res, serverIndex, method) {
     let modifiedHeaders = {...req.headers};
     
     delete modifiedHeaders["content-length"];
+    
+    let modifiedBody = {};
+
+    for (let key of Object.keys(req.body)) {
+      if (!key.startsWith("snq")) {
+        modifiedBody[key] = req.body[key];
+      }
+    }
 
     let response = await fetch(
       "http" + (config.useHttps ? "s" : "") +  "://" + config.destinationServers[serverIndex] + req.url,
       {
         method: method,
         headers: modifiedHeaders,
-        body: JSON.stringify(req.body),
+        body: JSON.stringify(modifiedBody),
       }
     );
     let blob = await response.blob();
