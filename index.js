@@ -74,14 +74,19 @@ async function executeRequest(req, res, serverIndex, method) {
         modifiedBody[key] = req.body[key];
       }
     }
+    let params = 
+    {
+      method: method,
+      headers: modifiedHeaders,
+    };
+
+    if (method != "GET") {
+      params.body = JSON.stringify(modifiedBody)
+    }
 
     let response = await fetch(
       "http" + (config.useHttps ? "s" : "") +  "://" + config.destinationServers[serverIndex] + req.url,
-      {
-        method: method,
-        headers: modifiedHeaders,
-        body: JSON.stringify(modifiedBody),
-      }
+      params
     );
     let blob = await response.blob();
     res.send(Buffer.from(await blob.arrayBuffer()));
